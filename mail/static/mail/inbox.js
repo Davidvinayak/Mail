@@ -73,3 +73,77 @@ function send_mail(e) {
     load_mailbox('sent');  // Go to "Sent" after sending.
   });
 }
+
+function view_email(id, mailbox) {
+
+  document.querySelector('#emails-view').style.display = 'none';
+  document.querySelector('#compose-view').style.display = 'none';
+  document.querySelector('#email-details-view').style.display = 'block';
+
+  document.querySelector('#email-details-view').innerHTML = '';
+
+  fetch(`/emails/${id}`)
+  .then(response => response.json())
+  .then(email => {
+
+    fetch(`/emails/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ read: true })
+    });
+
+    const details = `
+      <h3>${email.subject}</h3>
+      <p><strong>From:</strong> ${email.sender}</p>
+      <p><strong>To:</strong> ${email.recipients.join(', ')}</p>
+      <p><strong>Timestamp:</strong> ${email.timestamp}</p>
+      <hr>
+      <p>${email.body}</p>
+      <hr>
+    `;
+
+    document.querySelector('#email-details-view').innerHTML = details;
+
+    if (mailbox !== 'sent') {
+  const archiveButton = document.createElement('button');
+  archiveButton.innerHTML = email.archived ? 'Unarchive' : 'Archive';
+
+  archiveButton.addEventListener('click', () => {
+    fetch(`/emails/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ archived: !email.archived })
+    })
+    .then(() => load_mailbox('inbox'));
+  });
+
+  document.querySelector('#email-details-view').append(archiveButton);
+}
+
+const replyButton = document.createElement('button');
+replyButton.innerHTML = 'Reply';
+replyButton.style.marginLeft = '10px';
+
+replyButton.addEventListener('click', () => reply_email(email));
+document.querySelector('#email-details-view').append(replyButton);
+
+  });
+}
+
+function reply_email(email) {
+
+  compose_email();
+
+  // recipient becomes original sender
+  document.querySelector('#compose-recipients').value = email.sender;
+
+  // subject with Re:
+  let subject = email.subject;
+  if (!subject.startsWith("Re:")) {
+    subject = "Re: " + subject;
+  }
+  document.querySelector('#compose-subject').value = subject;
+
+  // body
+  document.querySelector('#compose-body').value =
+    `On ${email.timestamp} ${email.sender} wrote:\n${email.body}\n\n`;
+}
+
